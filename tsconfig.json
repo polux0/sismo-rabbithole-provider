@@ -12,5 +12,6 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.spec.ts"]
+  "exclude": ["src/**/*.spec.ts"],
+  "typeRoots": ["./global.d.ts"]
 }

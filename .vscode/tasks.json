@@ -5,7 +5,7 @@
   "tasks": [
     {
       "type": "typescript",
-      "tsconfig": "simple-typescript-starter/tsconfig.json",
+      "tsconfig": "rabbithole-provider/tsconfig.json",
       "problemMatcher": ["$tsc"]
     }
   ]
