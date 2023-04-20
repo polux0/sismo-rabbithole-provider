@@ -21,6 +21,7 @@ interface ENV {
   MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY: number | undefined;
   MAXIMUM_NUMBER_OF_THREADS: number | undefined;
   MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH: number | undefined;
+  ZERO_ADDRESS: string | undefined;
 }
 
 interface Config {
@@ -36,6 +37,7 @@ interface Config {
   MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY: number;
   MAXIMUM_NUMBER_OF_THREADS: number;
   MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH: number;
+  ZERO_ADDRESS: string;
 }
 
 // Loading process.env as ENV interface
@@ -76,23 +78,27 @@ const getConfig = (): ENV => {
       .MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY
       ? Number(process.env.MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY)
       : undefined,
-    MAXIMUM_NUMBER_OF_THREADS: process.env.MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY
-      ? Number(process.env.MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY)
+    MAXIMUM_NUMBER_OF_THREADS: process.env.MAXIMUM_NUMBER_OF_THREADS
+      ? Number(process.env.MAXIMUM_NUMBER_OF_THREADS)
       : undefined,
     MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH: process.env
-      .MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY
-      ? Number(process.env.MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY)
+      .MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH
+      ? Number(process.env.MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH)
+      : undefined,
+    ZERO_ADDRESS: process.env.ZERO_ADDRESS
+      ? process.env.ZERO_ADDRESS
       : undefined,
   };
 };
 
-export default getConfigByNetwork = (network: string): any => {
+const getConfigByNetwork = (network: string): any => {
   let URL;
   let API_KEY;
   let MINIMUM_TIMEOUT_FOR_FREE_TIER_API_KEY;
   let MAXIMUM_NUMBER_OF_THREADS;
   let MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH;
   let STARTING_BLOCK;
+  let ZERO_ADDRESS;
 
   const networkBasedConfig = getConfig();
 
@@ -106,6 +112,7 @@ export default getConfigByNetwork = (network: string): any => {
       MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH =
         networkBasedConfig.MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH;
       STARTING_BLOCK = networkBasedConfig.OPTIMISM_RABBIT_HOLE_STARTING_BLOCK;
+      ZERO_ADDRESS = networkBasedConfig.ZERO_ADDRESS;
       break;
     case 'ethereum':
       URL = networkBasedConfig.ETHERSCAN_URL;
@@ -118,6 +125,7 @@ export default getConfigByNetwork = (network: string): any => {
         networkBasedConfig.MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH;
       STARTING_BLOCK =
         networkBasedConfig.ETHEREUM_MAINNET_RABBIT_HOLE_STARTING_BLOCK;
+      ZERO_ADDRESS = networkBasedConfig.ZERO_ADDRESS;
       break;
     case 'polygon':
       URL = networkBasedConfig.POLYGONSCAN_URL;
@@ -129,6 +137,7 @@ export default getConfigByNetwork = (network: string): any => {
       MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH =
         networkBasedConfig.MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH;
       STARTING_BLOCK = networkBasedConfig.POLYGON_RABBIT_HOLE_STARTING_BLOCK;
+      ZERO_ADDRESS = networkBasedConfig.ZERO_ADDRESS;
       break;
   }
   return {
@@ -138,8 +147,11 @@ export default getConfigByNetwork = (network: string): any => {
     MAXIMUM_NUMBER_OF_THREADS,
     MAXIMUM_NUMBER_OF_BLOCKS_TO_FETCH,
     STARTING_BLOCK,
+    ZERO_ADDRESS,
   };
 };
+
+export default getConfigByNetwork;
 
 // Throwing an Error if any field was undefined we don't
 // want our app to run if it can't connect to DB and ensure
