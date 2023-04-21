@@ -2,12 +2,14 @@ import axios, { Axios, AxiosResponse } from 'axios';
 import encodeQuestId from './helper';
 import getConfigByNetwork from './config/config';
 import fs from 'fs';
+import { BigNumberish } from 'ethers';
 
 // strategy:
 // move everything necessary to config ( enviornment variables ) ✓
 // move logic from IIFE to function ✓
 // research factory in order to be able to choose right variables for right provider ( mainnet, optimism, polygon ) ✓
 // collect starting blocks for polygon & ethereum mainnet ✓
+// return value of function that query holders must return type fetchedData
 // move get latest block to `helper.ts`
 
 // optimism
@@ -27,12 +29,16 @@ const {
   ZERO_ADDRESS,
 } = getConfigByNetwork('ethereum');
 
+export type FetchedData = {
+  [address: string]: BigNumberish;
+};
+
 async function queryQuestTokenHolders(
   fromBlock: number,
   toBlock: number,
   questId: string,
   offset?: number,
-): Promise<string[]> {
+): Promise<FetchedData> {
   try {
     const { data: response }: AxiosResponse = await axios({
       url: `${URL}/api?module=logs&action=getLogs&address=0x52629961f71c1c2564c5aa22372cb1b9fa9eba3e&topic=0xa9e09a39b54248cb5161a8bad4e544f88b8aa2da99e7c425846bece6703cc1fc&data=${encodeQuestId(
@@ -42,18 +48,28 @@ async function queryQuestTokenHolders(
       }&apikey=${API_KEY}`,
       method: 'get',
     });
-    let holders: string[] | undefined;
+    let fetchedData: FetchedData = {};
     if (response.result) {
-      holders = response.result.map((transaction: any) => {
-        return transaction.topics[1]
-          ? transaction.topics[1].replace('000000000000000000000000', '')
-          : ZERO_ADDRESS;
-      });
+      fetchedData = response.result.reduce(
+        (accumulator: FetchedData, transaction: any) => {
+          const address = transaction.topics[1]
+            ? transaction.topics[1].replace('000000000000000000000000', '')
+            : ZERO_ADDRESS;
+
+          if (address in accumulator) {
+            accumulator[address] = Number(accumulator[address]) + 1;
+          } else {
+            accumulator[address] = 1;
+          }
+          return accumulator;
+        },
+        {},
+      );
     }
-    return holders ?? [];
+    return fetchedData ?? [];
   } catch (error) {
     console.log('`getAllQuestHolders` threw an error: ', error);
-    return [];
+    return {};
   }
 }
 async function getLatestBlock(): Promise<number | undefined> {
@@ -71,7 +87,7 @@ async function getLatestBlock(): Promise<number | undefined> {
 }
 async function queryQuestTokenHoldersWithThreads(
   questId: string,
-): Promise<string[]> {
+): Promise<FetchedData[]> {
   try {
     const fromBlock: number = STARTING_BLOCK;
     const toBlock: number = (await getLatestBlock()) ?? 89495952;
@@ -80,7 +96,7 @@ async function queryQuestTokenHoldersWithThreads(
       blockRange / MAXIMUM_NUMBER_OF_THREADS;
     let startBlock: number = fromBlock;
     let endBlock: number = startBlock + maximumIterationIncrement;
-    const promises: Promise<string[]>[] = [];
+    const promises: Promise<FetchedData>[] = [];
 
     do {
       for (let index = 0; index < MAXIMUM_NUMBER_OF_THREADS; index++) {
@@ -94,7 +110,7 @@ async function queryQuestTokenHoldersWithThreads(
       );
     } while (endBlock < toBlock);
 
-    const addresses = (await Promise.all(promises)).flat();
+    const addresses: FetchedData[] = (await Promise.all(promises)).flat();
     return addresses;
   } catch (error) {
     console.log('`queryQuestTokenHoldersWithThreads` threw an error: ', error);
@@ -105,17 +121,26 @@ async function queryQuestTokenHoldersWithThreads(
   const aggregatedHolders = await queryQuestTokenHoldersWithThreads(
     optimismQuestId,
   );
-  const aggregatedHoldersSanitized = aggregatedHolders.filter(
-    (address) => address.length <= 42 && address !== ZERO_ADDRESS,
+  aggregatedHolders.map((element) => {
+    console.log(element);
+  });
+  // console.log('aggregatedHolders: ', aggregatedHolders);
+  const filteredData = Object.fromEntries(
+    Object.entries(aggregatedHolders).filter(
+      (address) =>
+        address.length <= 42 &&
+        address !== ZERO_ADDRESS &&
+        Object.keys(address).length > 0,
+    ),
   );
+  // console.log('aggregatedHoldersFiltered: ', filteredData);
   try {
     fs.writeFileSync(
       '/home/equinox/Desktop/development/rabbithole-provider/src/tests/test.txt',
-      JSON.stringify(aggregatedHoldersSanitized),
+      JSON.stringify(aggregatedHolders),
     );
     // file written successfully
   } catch (err) {
     console.error(err);
   }
-  // console.log('aggregateHolders: ', aggregateHolders);
 })();
