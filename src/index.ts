@@ -9,7 +9,7 @@ import { BigNumberish } from 'ethers';
 // move logic from IIFE to function ✓
 // research factory in order to be able to choose right variables for right provider ( mainnet, optimism, polygon ) ✓
 // collect starting blocks for polygon & ethereum mainnet ✓
-// return value of function that query holders must return type fetchedData
+// return value of function that query holders must return type fetchedData ✓
 // move get latest block to `helper.ts`
 
 // optimism
@@ -87,7 +87,7 @@ async function getLatestBlock(): Promise<number | undefined> {
 }
 async function queryQuestTokenHoldersWithThreads(
   questId: string,
-): Promise<FetchedData[]> {
+): Promise<FetchedData> {
   try {
     const fromBlock: number = STARTING_BLOCK;
     const toBlock: number = (await getLatestBlock()) ?? 89495952;
@@ -97,7 +97,6 @@ async function queryQuestTokenHoldersWithThreads(
     let startBlock: number = fromBlock;
     let endBlock: number = startBlock + maximumIterationIncrement;
     const promises: Promise<FetchedData>[] = [];
-
     do {
       for (let index = 0; index < MAXIMUM_NUMBER_OF_THREADS; index++) {
         promises.push(queryQuestTokenHolders(startBlock, endBlock, questId));
@@ -110,30 +109,35 @@ async function queryQuestTokenHoldersWithThreads(
       );
     } while (endBlock < toBlock);
 
-    const addresses: FetchedData[] = (await Promise.all(promises)).flat();
-    return addresses;
+    const addresses: FetchedData[] = await Promise.all(promises);
+    const fetchedData: FetchedData = addresses.reduce(
+      (accumulator: FetchedData, current: FetchedData) => {
+        for (const [key, value] of Object.entries(current)) {
+          if (key in accumulator) {
+            accumulator[key] = Number(accumulator[key]) + Number(value);
+          } else {
+            accumulator[key] = value;
+          }
+        }
+        return accumulator;
+      },
+      {},
+    );
+    const fetchedDataSanitized = Object.fromEntries(
+      Object.entries(fetchedData).filter(
+        ([key]) => key.length <= 42 && key !== ZERO_ADDRESS,
+      ),
+    );
+    return fetchedDataSanitized;
   } catch (error) {
     console.log('`queryQuestTokenHoldersWithThreads` threw an error: ', error);
-    return [];
+    return {};
   }
 }
 (async () => {
   const aggregatedHolders = await queryQuestTokenHoldersWithThreads(
     optimismQuestId,
   );
-  aggregatedHolders.map((element) => {
-    console.log(element);
-  });
-  // console.log('aggregatedHolders: ', aggregatedHolders);
-  const filteredData = Object.fromEntries(
-    Object.entries(aggregatedHolders).filter(
-      (address) =>
-        address.length <= 42 &&
-        address !== ZERO_ADDRESS &&
-        Object.keys(address).length > 0,
-    ),
-  );
-  // console.log('aggregatedHoldersFiltered: ', filteredData);
   try {
     fs.writeFileSync(
       '/home/equinox/Desktop/development/rabbithole-provider/src/tests/test.txt',
